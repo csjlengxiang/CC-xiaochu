@@ -237,14 +237,14 @@ extension GameScene {
         runAction(SKAction.waitForDuration(duration), completion: completion)
     }
 }
-// 下落动画
+// 下落动画，和填充新动画，合成一块儿
 extension GameScene {
     func animateFallingCookies(columns: [[Cookie]], completion: () -> ()) {
         var longestDuration: NSTimeInterval = 0
         for array in columns {
             for (idx, cookie) in enumerate(array) {
                 let newPosition = pointForColumn(cookie.column, row: cookie.row)
-                let delay = 0.05 + 0.05 * NSTimeInterval(idx)
+                let delay = 0.05 + 0.1 * NSTimeInterval(idx)
                 let sprite = cookie.sprite!
                 let duration = NSTimeInterval(((sprite.position.y - newPosition.y) / TileHeight) * 0.1)
                 longestDuration = max(longestDuration, duration + delay)
@@ -256,7 +256,7 @@ extension GameScene {
                         moveAction]))
             }
         }
-        runAction(SKAction.waitForDuration(longestDuration * 0.5), completion: completion)
+        runAction(SKAction.waitForDuration(longestDuration), completion: completion)
     }
     func animateNewCookies(columns: [[Cookie]], completion: () -> ()) {
         var longestDuration: NSTimeInterval = 0
@@ -284,7 +284,6 @@ extension GameScene {
                         ]))
             }
         }
-        // 7
         runAction(SKAction.waitForDuration(longestDuration + 0.01), completion: completion)
     }
 }
