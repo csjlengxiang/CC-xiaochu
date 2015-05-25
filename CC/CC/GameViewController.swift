@@ -47,9 +47,10 @@ class GameViewController: UIViewController {
         /* Set the scale mode to scale to fit the window */
         scene = GameScene(size: skView.bounds.size)
         scene.scaleMode = .AspectFill
+        
+        //绑定数据，尽量不用scene.level数据
+        scene.addSpriteToScence(level)
         scene.level = level
-        //绑定数据
-        scene.addSpriteToScence()
         
         //绑定交换事件
         scene.swipeHandler = handleSwipe
@@ -89,8 +90,7 @@ class GameViewController: UIViewController {
         }
     }
     func handleMatches() {
-        //let chains = level.removeMatches()
-        let cookies = level.getMatches()
+        let cookies = level.getRemoveCookies()
         if cookies.count == 0{
             self.level.detectPossibleSwaps()
             self.view.userInteractionEnabled = true

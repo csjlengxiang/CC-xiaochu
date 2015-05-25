@@ -44,81 +44,75 @@ class GameScene: SKScene {
         
         addChild(gameLayer)
     }
-    /* 由数据生成sprite */
-    func addSpriteToScence(){
-        
+    required init?(coder aDecoder: NSCoder) {
+        super.init(coder: aDecoder)
+    }
+}
+// 根据模型初始化
+extension GameScene {
+    /* 由数据模型生成sprite */
+    func addSpriteToScence(level: Level) {
         for row in 0..<NumRows {
             for column in 0..<NumColumns {
                 //level: tile add
                 if let tile = level.tileAt(column, row: row) {
                     let position = pointForColumn(column, row: row)
-                    let tileNode = SKSpriteNode(imageNamed: "Tile")
-                    tileNode.position = position
-                    tilesLayer.addChild(tileNode)
+                    let tileSprite = SKSpriteNode(imageNamed: "Tile")
+                    tileSprite.position = position
+                    tilesLayer.addChild(tileSprite)
                     
                     //level: cookie add
                     let cookie = level.cookieAt(column, row: row)!
-                    let cookieNode = SKSpriteNode(imageNamed: cookie.cookieType.spriteName)
-                    cookie.sprite = cookieNode
-                    cookieNode.position = position
-                    cookiesLayer.addChild(cookieNode)
+                    let cookieSprite = SKSpriteNode(imageNamed: cookie.cookieType.spriteName)
+                    cookie.sprite = cookieSprite
+                    cookieSprite.position = position
+                    cookiesLayer.addChild(cookieSprite)
                 }
             }
         }
     }
-    
     func pointForColumn(column: Int, row: Int) -> CGPoint {
         return CGPoint(
             x: CGFloat(column)*TileWidth + TileWidth/2,
             y: CGFloat(row)*TileHeight + TileHeight/2)
     }
-    
-    required init?(coder aDecoder: NSCoder) {
-        super.init(coder: aDecoder)
-    }
 }
-
+/*
+    触摸判定swap相关
+    高亮消除才消失，错误交换和非法交换保持高亮
+*/
 extension GameScene {
     override func touchesBegan(touches: Set<NSObject>, withEvent event: UIEvent) {
+        // 单点触控
         let touch = touches.first as! UITouch
         let location = touch.locationInNode(cookiesLayer)
-        //println("\(location.x) \(location.y)")
         let (success, column, row) = convertPoint(location)
         if success {
-            // 3
             if let cookie = level.cookieAt(column, row: row) {
-                // 4
                 swipeFromColumn = column
                 swipeFromRow = row
-                // 显示高亮
                 showSelectionIndicatorForCookie(cookie)
-                println("\(location.x) \(location.y)")
             }
         }
-        
     }
     func convertPoint(point: CGPoint) -> (success: Bool, column: Int, row: Int) {
         if point.x >= 0 && point.x < CGFloat(NumColumns)*TileWidth &&
             point.y >= 0 && point.y < CGFloat(NumRows)*TileHeight {
                 return (true, Int(point.x / TileWidth), Int(point.y / TileHeight))
         } else {
-            return (false, 0, 0)  // invalid location
+            return (false, 0, 0)
         }
     }
     
     override func touchesMoved(touches: Set<NSObject>, withEvent event: UIEvent) {
-        
-        // 1
         if swipeFromColumn == nil { return }
         
-        // 2
         let touch = touches.first as! UITouch
         let location = touch.locationInNode(cookiesLayer)
-        
         let (success, column, row) = convertPoint(location)
+        
         if success {
             
-            // 3
             var horzDelta = 0, vertDelta = 0
             if column < swipeFromColumn {          // swipe left
                 horzDelta = -1
@@ -130,35 +124,31 @@ extension GameScene {
                 vertDelta = 1
             }
             
-            // 4
             if horzDelta != 0 || vertDelta != 0 {
                 let swipeToColumn = swipeFromColumn + horzDelta
                 let swipeToRow = swipeFromRow + vertDelta
                 
-                // 5
                 let from = level.cookieAt(swipeFromColumn, row: swipeFromRow)!
                 if let to = level.cookieAt(swipeToColumn, row: swipeToRow){
                     
                     if let handler = swipeHandler {
                         let sw = Swap(cf: from, ct: to)
                         
-                        println(sw.description)
                         handler(sw)
+                        //hideSelectionIndicator(tm: 0.3)
                     }
                     
                 }
-                hideSelectionIndicator(tm: 0.3)
-                
+                //hideSelectionIndicator(tm: 0.3)
                 swipeFromColumn = nil
             }
         }
     }
     override func touchesEnded(touches: Set<NSObject>, withEvent event: UIEvent) {
         
-        if selectionSprite.parent != nil && swipeFromColumn != nil {
-            hideSelectionIndicator(tm: 0)
-        }
-        
+//        if selectionSprite.parent != nil && swipeFromColumn != nil {
+//            hideSelectionIndicator(tm: 0)
+//        }
         swipeFromColumn = nil
     }
     override func touchesCancelled(touches: Set<NSObject>, withEvent event: UIEvent) {
@@ -172,7 +162,7 @@ extension GameScene {
         spriteA.zPosition = 100
         spriteB.zPosition = 90
         
-        let Duration: NSTimeInterval = 0.3
+        let Duration: NSTimeInterval = 0.15
         
         let moveA = SKAction.moveTo(spriteB.position, duration: Duration)
         moveA.timingMode = .EaseOut
@@ -182,7 +172,8 @@ extension GameScene {
         
         spriteA.runAction(moveA)
         spriteB.runAction(moveB)
-        runAction(SKAction.waitForDuration(0.3 + 0.01), completion: completion)
+        hideSelectionIndicator(tm: 5)
+        runAction(SKAction.waitForDuration(Duration), completion: completion)
         
     }
     func tryAnimateSwap(swap: Swap, completion: () -> ()) {
@@ -192,7 +183,7 @@ extension GameScene {
         spriteA.zPosition = 100
         spriteB.zPosition = 90
         
-        let Duration: NSTimeInterval = 0.2
+        let Duration: NSTimeInterval = 0.1
         
         let moveA = SKAction.moveTo(spriteB.position, duration: Duration)
         moveA.timingMode = .EaseOut
@@ -201,8 +192,9 @@ extension GameScene {
         let moveB = SKAction.moveTo(spriteA.position, duration: Duration)
         moveB.timingMode = .EaseOut
         spriteA.runAction(SKAction.sequence([moveA, moveB]))
-        spriteB.runAction(SKAction.sequence([moveB, moveA]), completion: completion)
-        
+        spriteB.runAction(SKAction.sequence([moveB, moveA]))
+        runAction(SKAction.waitForDuration(Duration), completion: completion)
+
     }
     func showSelectionIndicatorForCookie(cookie: Cookie) {
         if selectionSprite.parent != nil {
@@ -223,23 +215,6 @@ extension GameScene {
             SKAction.fadeOutWithDuration(tm),
             SKAction.removeFromParent()]))
     }
-    
-//    func animateMatchedCookies(chains: Set<Chain>, completion: () -> ()) {
-//        for chain in chains {
-//            for cookie in chain.cookies {
-//                if let sprite = cookie.sprite {
-//                    if sprite.actionForKey("removing") == nil {
-//                        let scaleAction = SKAction.scaleTo(0.1, duration: 0.3)
-//                        scaleAction.timingMode = .EaseOut
-//                        sprite.runAction(SKAction.sequence([scaleAction, SKAction.removeFromParent()]),
-//                            withKey:"removing")
-//                    }
-//                }
-//            }
-//        }
-//        //runAction(matchSound)
-//        runAction(SKAction.waitForDuration(0.3 + 0.01), completion: completion)
-//    }
     func animateMatchedCookies(cookies: Set<Cookie>, completion: () -> ()){
         
         for cookie in cookies {
