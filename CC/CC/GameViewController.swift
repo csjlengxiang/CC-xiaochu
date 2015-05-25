@@ -97,8 +97,7 @@ class GameViewController: UIViewController {
             return 
         }
         level.removeCookies(cookies)
-        
-        scene.animateMatchedCookies(cookies) {
+        scene.animateRemoveCookies(cookies) {
             let columns = self.level.fillHoles()
             self.scene.animateFallingCookies(columns) {
                 let columns = self.level.topUpCookies()

@@ -76,6 +76,14 @@ extension GameScene {
             x: CGFloat(column)*TileWidth + TileWidth/2,
             y: CGFloat(row)*TileHeight + TileHeight/2)
     }
+    func convertPoint(point: CGPoint) -> (success: Bool, column: Int, row: Int) {
+        if point.x >= 0 && point.x < CGFloat(NumColumns)*TileWidth &&
+            point.y >= 0 && point.y < CGFloat(NumRows)*TileHeight {
+                return (true, Int(point.x / TileWidth), Int(point.y / TileHeight))
+        } else {
+            return (false, 0, 0)
+        }
+    }
 }
 /*
     触摸判定swap相关
@@ -95,15 +103,6 @@ extension GameScene {
             }
         }
     }
-    func convertPoint(point: CGPoint) -> (success: Bool, column: Int, row: Int) {
-        if point.x >= 0 && point.x < CGFloat(NumColumns)*TileWidth &&
-            point.y >= 0 && point.y < CGFloat(NumRows)*TileHeight {
-                return (true, Int(point.x / TileWidth), Int(point.y / TileHeight))
-        } else {
-            return (false, 0, 0)
-        }
-    }
-    
     override func touchesMoved(touches: Set<NSObject>, withEvent event: UIEvent) {
         if swipeFromColumn == nil { return }
         
@@ -154,7 +153,30 @@ extension GameScene {
     override func touchesCancelled(touches: Set<NSObject>, withEvent event: UIEvent) {
         touchesEnded(touches, withEvent: event)
     }
-    
+    // 其实是覆盖原先的图片了
+    func showSelectionIndicatorForCookie(cookie: Cookie) {
+        if selectionSprite.parent != nil {
+            selectionSprite.removeFromParent()
+        }
+        
+        if let sprite = cookie.sprite {
+            let texture = SKTexture(imageNamed: cookie.cookieType.highlightedSpriteName)
+            selectionSprite.size = texture.size()
+            selectionSprite.runAction(SKAction.setTexture(texture))
+            
+            sprite.addChild(selectionSprite)
+            selectionSprite.alpha = 1
+        }
+    }
+    // 消失后删除
+    func hideSelectionIndicator(tm: NSTimeInterval = 0.2) {
+        selectionSprite.runAction(SKAction.sequence([
+            SKAction.fadeOutWithDuration(tm),
+            SKAction.removeFromParent()]))
+    }
+}
+// 交换动画
+extension GameScene {
     func animateSwap(swap: Swap, completion: () -> ()) {
         let spriteA = swap.cf.sprite
         let spriteB = swap.ct.sprite
@@ -172,7 +194,7 @@ extension GameScene {
         
         spriteA.runAction(moveA)
         spriteB.runAction(moveB)
-        hideSelectionIndicator(tm: 5)
+        hideSelectionIndicator(tm: 0.15)
         runAction(SKAction.waitForDuration(Duration), completion: completion)
         
     }
@@ -196,56 +218,36 @@ extension GameScene {
         runAction(SKAction.waitForDuration(Duration), completion: completion)
 
     }
-    func showSelectionIndicatorForCookie(cookie: Cookie) {
-        if selectionSprite.parent != nil {
-            selectionSprite.removeFromParent()
-        }
-        
-        if let sprite = cookie.sprite {
-            let texture = SKTexture(imageNamed: cookie.cookieType.highlightedSpriteName)
-            selectionSprite.size = texture.size()
-            selectionSprite.runAction(SKAction.setTexture(texture))
-            
-            sprite.addChild(selectionSprite)
-            selectionSprite.alpha = 1.0
-        }
-    }
-    func hideSelectionIndicator(tm: NSTimeInterval = 0.2) {
-        selectionSprite.runAction(SKAction.sequence([
-            SKAction.fadeOutWithDuration(tm),
-            SKAction.removeFromParent()]))
-    }
-    func animateMatchedCookies(cookies: Set<Cookie>, completion: () -> ()){
-        
+}
+// 消失动画
+extension GameScene {
+    func animateRemoveCookies(cookies: Set<Cookie>, completion: () -> ()){
+        let duration: NSTimeInterval = 0.15
         for cookie in cookies {
             if let sprite = cookie.sprite {
                 if sprite.actionForKey("removing") == nil {
-                    let scaleAction = SKAction.scaleTo(0.1, duration: 0.3)
+                    let scaleAction = SKAction.scaleTo(0.1, duration: duration)
                     scaleAction.timingMode = .EaseOut
                     sprite.runAction(SKAction.sequence([scaleAction, SKAction.removeFromParent()]),
                         withKey:"removing")
                 }
             }
         }
-        
-        //runAction(matchSound)
-        runAction(SKAction.waitForDuration(0.3 + 0.01), completion: completion)
+        //completion()
+        runAction(SKAction.waitForDuration(duration), completion: completion)
     }
-    
+}
+// 下落动画
+extension GameScene {
     func animateFallingCookies(columns: [[Cookie]], completion: () -> ()) {
-        // 1
         var longestDuration: NSTimeInterval = 0
         for array in columns {
             for (idx, cookie) in enumerate(array) {
                 let newPosition = pointForColumn(cookie.column, row: cookie.row)
-                // 2
-                let delay = 0.05 + 0.15*NSTimeInterval(idx)
-                // 3
+                let delay = 0.05 + 0.05 * NSTimeInterval(idx)
                 let sprite = cookie.sprite!
                 let duration = NSTimeInterval(((sprite.position.y - newPosition.y) / TileHeight) * 0.1)
-                // 4
                 longestDuration = max(longestDuration, duration + delay)
-                // 5
                 let moveAction = SKAction.moveTo(newPosition, duration: duration)
                 moveAction.timingMode = .EaseOut
                 sprite.runAction(
@@ -254,29 +256,21 @@ extension GameScene {
                         moveAction]))
             }
         }
-        // 6
-        runAction(SKAction.waitForDuration(longestDuration + 0.01), completion: completion)
+        runAction(SKAction.waitForDuration(longestDuration * 0.5), completion: completion)
     }
     func animateNewCookies(columns: [[Cookie]], completion: () -> ()) {
-        // 1
         var longestDuration: NSTimeInterval = 0
-        
         for array in columns {
-            // 2
             let startRow = array[0].row + 1
-            
             for (idx, cookie) in enumerate(array) {
-                // 3
                 let sprite = SKSpriteNode(imageNamed: cookie.cookieType.spriteName)
                 sprite.position = pointForColumn(cookie.column, row: startRow)
                 cookiesLayer.addChild(sprite)
                 cookie.sprite = sprite
-                // 4
-                let delay = 0.1 + 0.2 * NSTimeInterval(array.count - idx - 1)
-                // 5
+                let delay = 0.05 + 0.1 * NSTimeInterval(array.count - idx - 1)
                 let duration = NSTimeInterval(startRow - cookie.row) * 0.1
                 longestDuration = max(longestDuration, duration + delay)
-                // 6
+            
                 let newPosition = pointForColumn(cookie.column, row: cookie.row)
                 let moveAction = SKAction.moveTo(newPosition, duration: duration)
                 moveAction.timingMode = .EaseOut
