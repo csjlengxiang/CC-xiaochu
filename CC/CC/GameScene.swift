@@ -28,13 +28,24 @@ class GameScene: SKScene {
     
     override init(size: CGSize) {
         super.init(size: size)
-        anchorPoint = CGPoint(x: 0.5, y: 0.5)
+        anchorPoint = CGPoint(x: 0.0, y: 0.0)
         let background = SKSpriteNode(imageNamed: "Background")
+        var sz = UIScreen.mainScreen().applicationFrame.size
+    
+        var imgsz = background.size
+        
+        background.position = CGPoint(x: sz.width / 2, y: sz.height / 2)
+        
         addChild(background)
         
+        
+        
+//        let layerPosition = CGPoint(
+//            x: -TileWidth * CGFloat(NumColumns) / 2,
+//            y: -TileHeight * CGFloat(NumRows) / 2)
         let layerPosition = CGPoint(
-            x: -TileWidth * CGFloat(NumColumns) / 2,
-            y: -TileHeight * CGFloat(NumRows) / 2)
+            x: 0,
+            y: 0)
         
         tilesLayer.position = layerPosition
         gameLayer.addChild(tilesLayer)
